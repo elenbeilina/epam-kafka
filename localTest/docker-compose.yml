@@ -1,0 +1,102 @@
+version: "3.7"
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.5.2
+    container_name: kafka_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka1:
+    image: confluentinc/cp-enterprise-kafka:5.5.2
+    container_name: kafka1
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:29091,PLAINTEXT_HOST://localhost:9091
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG4J_LOGGERS: kafka.controller=INFO,state.change.logger=INFO
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      # Confluent Metrics Reporter
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 3
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka1:29091,kafka2:29092,kafka3:29093
+      CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL: PLAINTEXT
+      CONFLUENT_METRICS_REPORTER_SASL_MECHANISM: PLAIN
+      CONFLUENT_METRICS_REPORTER_MAX_REQUEST_SIZE: 10485760
+      # To avoid race condition with control-center
+      # CONFLUENT_METRICS_REPORTER_TOPIC_CREATE: 'false'
+      CONFLUENT_METRICS_REPORTER_TOPIC_CREATE: 'true'
+    ports:
+      - 9091:9091
+      - 29091:29091
+
+  kafka2:
+    image: confluentinc/cp-enterprise-kafka:5.5.2
+    container_name: kafka2
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG4J_LOGGERS: kafka.controller=INFO,state.change.logger=INFO
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      # Confluent Metrics Reporter
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 3
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka1:29091,kafka2:29092,kafka3:29093
+      CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL: PLAINTEXT
+      CONFLUENT_METRICS_REPORTER_MAX_REQUEST_SIZE: 10485760
+      # To avoid race condition with control-center
+      # CONFLUENT_METRICS_REPORTER_TOPIC_CREATE: 'false'
+      CONFLUENT_METRICS_REPORTER_TOPIC_CREATE: 'true'
+    ports:
+      - 9092:9092
+      - 29092:29092
+
+  kafka3:
+    image: confluentinc/cp-enterprise-kafka:5.5.2
+    container_name: kafka3
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:29093,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG4J_LOGGERS: kafka.controller=INFO,state.change.logger=INFO
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      # Confluent Metrics Reporter
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 3
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka1:29091,kafka2:29092,kafka3:29093
+      CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL: PLAINTEXT
+      CONFLUENT_METRICS_REPORTER_MAX_REQUEST_SIZE: 10485760
+      # To avoid race condition with control-center
+      # CONFLUENT_METRICS_REPORTER_TOPIC_CREATE: 'false'
+      CONFLUENT_METRICS_REPORTER_TOPIC_CREATE: 'true'
+    ports:
+      - 9093:9093
+      - 29093:29093
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:5.5.2
+    container_name: control-center
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    ports:
+      - 9021:9021
+      - 9022:9022
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: kafka1:29091,kafka2:29092,kafka3:29093
+      CONTROL_CENTER_REPLICATION_FACTOR: 2
+      CONTROL_CENTER_REST_LISTENERS: http://0.0.0.0:9021,http://0.0.0.0:9022
+      PORT: 9021
