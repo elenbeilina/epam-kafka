@@ -15,6 +15,8 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
+import org.springframework.kafka.requestreply.ReplyingKafkaTemplate;
 
 import java.util.Map;
 
@@ -35,15 +37,35 @@ public class KafkaConfig {
 
   @Bean
   //at least once
-  public KafkaTemplate<String, String> kafkaTemplate(
-      KafkaProperties properties) {
+  public ReplyingKafkaTemplate<String, String, String> replyingKafkaTemplate(
+      KafkaProperties properties,
+      ConcurrentMessageListenerContainer<String, String> replyContainer
+  ) {
     Map<String, Object> props = properties.buildProducerProperties();
     //This is set by default:
     //https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#producerconfigs_acks
     props.put(ProducerConfig.ACKS_CONFIG, "all");
 
-    return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
+    return new ReplyingKafkaTemplate<>(new DefaultKafkaProducerFactory<>(props), replyContainer);
   }
+
+  @Bean
+  KafkaTemplate<String, String> replyKafkaTemplate(KafkaProperties properties) {
+    return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(
+            properties.buildProducerProperties())
+        );
+  }
+
+  @Bean
+  public ConcurrentMessageListenerContainer<String, String> replyContainer(
+      ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory) {
+    ConcurrentMessageListenerContainer<String, String> replyContainer =
+        kafkaListenerContainerFactory.createContainer(customKafkaProperties.getReplyTopicName());
+    replyContainer.getContainerProperties().setGroupId(customKafkaProperties.getConsumerGroupId());
+    replyContainer.getContainerProperties().setMissingTopicsFatal(false);
+    return replyContainer;
+  }
+
 
   //at most once
   @Bean
@@ -56,11 +78,14 @@ public class KafkaConfig {
 
   @Bean
   public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-      ConsumerFactory<String, String> consumerFactory) {
+      ConsumerFactory<String, String> consumerFactory,
+      KafkaTemplate<String, String> replyKafkaTemplate
+  ) {
 
     ConcurrentKafkaListenerContainerFactory<String, String> factory =
         new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory);
+    factory.setReplyTemplate(replyKafkaTemplate);
 
     return factory;
   }
