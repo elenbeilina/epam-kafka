@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -15,12 +16,17 @@ public class Producer {
 
   private final KafkaTemplate<String, String> kafkaTemplate;
   private final CustomKafkaProperties customKafkaProperties;
+  private final ExternalService externalService;
 
   @SneakyThrows
-  public void sendMessage(String message) {
+  @Transactional
+  public void sendMessage(String key, String message) {
     log.info("Sending message: {} to Kafka.", message);
     ProducerRecord<String, String> producerRecord =
-        new ProducerRecord<>(customKafkaProperties.getSourceTopicName(), message);
+        new ProducerRecord<>(customKafkaProperties.getSourceTopicName(), key, message);
+    kafkaTemplate.send(producerRecord);
+    externalService.sendToExternalSystem(message);
+    log.info("Sending message: {} to Kafka.", message);
     kafkaTemplate.send(producerRecord);
   }
 }

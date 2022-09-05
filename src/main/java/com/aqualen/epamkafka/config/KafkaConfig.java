@@ -15,18 +15,23 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.transaction.KafkaTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import java.util.Map;
 
 @EnableKafka
 @Configuration
 @RequiredArgsConstructor
+@EnableTransactionManagement
 public class KafkaConfig {
 
   private final CustomKafkaProperties customKafkaProperties;
 
   @Bean
-  public NewTopic taxiTopic() {
+  public NewTopic topic() {
     return TopicBuilder.name(customKafkaProperties.getSourceTopicName())
         .partitions(3)
         .replicas(3)
@@ -34,33 +39,38 @@ public class KafkaConfig {
   }
 
   @Bean
-  //at least once
-  public KafkaTemplate<String, String> kafkaTemplate(
-      KafkaProperties properties) {
-    Map<String, Object> props = properties.buildProducerProperties();
-    //This is set by default:
-    //https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#producerconfigs_acks
-    props.put(ProducerConfig.ACKS_CONFIG, "all");
-
-    return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
+  KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> producerFactory) {
+    return new KafkaTemplate<>(producerFactory);
   }
 
-  //at most once
   @Bean
-  public ConsumerFactory<String, String> consumerFactory(KafkaProperties kafkaProperties) {
+  KafkaTransactionManager<String, String> kafkaTransactionManager(ProducerFactory<String, String> producerFactory) {
+    return new KafkaTransactionManager<>(producerFactory);
+  }
+
+  @Bean
+  ProducerFactory<String, String> producerFactory(KafkaProperties properties) {
+    Map<String, Object> props = properties.buildProducerProperties();
+    props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "transaction-id");
+    props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+    return new DefaultKafkaProducerFactory<>(props);
+  }
+
+  @Bean
+  ConsumerFactory<String, String> consumerFactory(KafkaProperties kafkaProperties) {
     Map<String, Object> props = kafkaProperties.buildConsumerProperties();
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
-    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 1000);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, customKafkaProperties.getConsumerGroupId());
     return new DefaultKafkaConsumerFactory<>(props);
   }
 
   @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+  ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
       ConsumerFactory<String, String> consumerFactory) {
 
     ConcurrentKafkaListenerContainerFactory<String, String> factory =
         new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory);
+    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
 
     return factory;
   }
