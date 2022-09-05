@@ -39,6 +39,12 @@ public class TaxiConsumers {
   }
 
   @SneakyThrows
+  @KafkaListener(topics = "${kafka.topic-name}", groupId = "taxi-consumer")
+  public void consumer3(ConsumerRecord<Long, Taxi> taxi) {
+    writeToTheFile("Consumer#3", taxi.value());
+  }
+
+  @SneakyThrows
   private void writeToTheFile(String consumerName, Taxi taxi) {
     Files.writeString(logFile, consumerName + ": " + taxi.toString() + "\n", APPEND);
     log.info("Taxi received by " + consumerName + " -> {}", taxi);

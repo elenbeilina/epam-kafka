@@ -21,3 +21,12 @@ Important: \
 Tips: \
 • the first two subtasks may be done as integration tests (for example, using
 the Embedded Kafka from Spring Boot)
+
+#### Testing
+
+curl --location --request POST 'http://localhost:1362/epam/kafka/taxi' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+"id":3055,
+"coordinates":"51° 40'\'' 31.7892'\'''\'' N | 39° 12'\'' 31.9752'\'''\'' E"
+}'
