@@ -1,13 +1,16 @@
 package com.aqualen.epamkafka.logic;
 
+import com.aqualen.epamkafka.aspect.ThreeListeners;
 import com.aqualen.epamkafka.dto.Taxi;
+import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,22 +29,10 @@ public class TaxiConsumers {
     Files.writeString(logFile, "");
   }
 
-  @SneakyThrows
-  @KafkaListener(topics = "${kafka.topic-name}", groupId = "taxi-consumer")
-  public void consumer1(ConsumerRecord<Long, Taxi> taxi) {
-    writeToTheFile("Consumer#1", taxi.value());
-  }
-
-  @SneakyThrows
-  @KafkaListener(topics = "${kafka.topic-name}", groupId = "taxi-consumer")
-  public void consumer2(ConsumerRecord<Long, Taxi> taxi) {
-    writeToTheFile("Consumer#2", taxi.value());
-  }
-
-  @SneakyThrows
-  @KafkaListener(topics = "${kafka.topic-name}", groupId = "taxi-consumer")
-  public void consumer3(ConsumerRecord<Long, Taxi> taxi) {
-    writeToTheFile("Consumer#3", taxi.value());
+  @ThreeListeners(topics = "${kafka.topic-name}",
+      groupId = "taxi-consumer")
+  public void consumer(ConsumerRecord<Long, Taxi> taxi, @Header(KafkaHeaders.CONSUMER) Consumer<Long, Taxi> consumer) {
+    writeToTheFile("Consumer: " + consumer.groupMetadata().memberId(), taxi.value());
   }
 
   @SneakyThrows
