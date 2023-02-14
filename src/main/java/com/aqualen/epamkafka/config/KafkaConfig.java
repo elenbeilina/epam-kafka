@@ -46,12 +46,12 @@ public class KafkaConfig {
   }
 
   //at most once
-  //https://medium.com/@andy.bryant/processing-guarantees-in-kafka-12dd2e30be0e#:~:text=Kafka%20Consumer%20API,-Processes%20pull%20data&text=The%20partitions%20of%20any%20topics,are%20stored%20in%20the%20log.
+  //https://dzone.com/articles/kafka-clients-at-most-once-at-least-once-exactly-o
   @Bean
   public ConsumerFactory<String, String> consumerFactory(KafkaProperties kafkaProperties) {
     Map<String, Object> props = kafkaProperties.buildConsumerProperties();
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 1000);
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
+    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
     return new DefaultKafkaConsumerFactory<>(props);
   }
 
